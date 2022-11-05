@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
+#include <time.h>
 
 void print_help(char *command)
 {
@@ -10,6 +12,20 @@ void print_help(char *command)
     printf("Opciones:\n");
     printf(" -h\t\t\tAyuda, muestra este mensaje\n");
 }
+
+struct restaurante
+{
+    int x;
+    int y;
+    char name[30];
+};
+
+struct motorizado
+{
+    int x;
+    int y;
+    char name[30];
+};
 
 int main(int argc, char *argv[])
 {
@@ -38,16 +54,67 @@ int main(int argc, char *argv[])
     }
 
     int dimension_matriz = atoi(argv[1]);
-    int restaurantes = atoi(argv[2]);
+    int num_restaurantes = atoi(argv[2]);
     int intervalo_ms = atoi(argv[3]);
-    int motorizados = atoi(argv[4]);
+    int num_motorizados = atoi(argv[4]);
     int distancia_km = atoi(argv[5]);
 
-    printf("%d\n", dimension_matriz);
-    printf("%d\n", restaurantes);
-    printf("%d\n", intervalo_ms);
-    printf("%d\n", motorizados);
-    printf("%d\n", distancia_km);
+    printf("Grilla de %dx%d, %d restaurantes, intervalo %d ms, %d motorizados, %d kilometros de distancia\n", dimension_matriz, dimension_matriz, num_restaurantes, intervalo_ms, num_motorizados, distancia_km);
+
+    char matriz[dimension_matriz][dimension_matriz];
+    int i = 0;
+    int j = 0;
+
+    memset(matriz, ' ', sizeof(char) * dimension_matriz * dimension_matriz);
+
+    srand(time(0));
+
+    struct restaurante restaurantes[num_restaurantes];
+    struct motorizado motorizados[num_motorizados];
+
+    char espacio;
+
+    /*Distribucion aleatoria de restaurantes*/
+    for (num_restaurantes; num_restaurantes > 0; num_restaurantes--)
+    {
+        do
+        {
+            i = rand() % dimension_matriz;
+            j = rand() % dimension_matriz;
+            espacio = matriz[i][j];
+            if (espacio == ' ')
+            {
+                matriz[i][j] = 'r';
+            }
+        } while (espacio != ' ');
+    }
+
+    /*Distribucion aleatoria de motorizados*/
+    for (num_motorizados; num_motorizados > 0; num_motorizados--)
+    {
+        do
+        {
+            i = rand() % dimension_matriz;
+            j = rand() % dimension_matriz;
+            espacio = matriz[i][j];
+            if (espacio == ' ')
+            {
+                matriz[i][j] = 'm';
+            }
+        } while (espacio != ' ');
+    }
+
+    i = 0;
+    j = 0;
+    for (i; i < dimension_matriz; i++)
+    {
+        j = 0;
+        for (j; j < dimension_matriz; j++)
+        {
+            printf("%c ", matriz[i][j]);
+        }
+        printf("\n");
+    }
 
     return 0;
 }
