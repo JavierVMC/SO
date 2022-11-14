@@ -17,14 +17,14 @@ struct restaurante
 {
     int x;
     int y;
-    char name[30];
+    int number;
 };
 
 struct motorizado
 {
     int x;
     int y;
-    char name[30];
+    int number;
 };
 
 int main(int argc, char *argv[])
@@ -53,11 +53,11 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    int dimension_matriz = atoi(argv[1]);
-    int num_restaurantes = atoi(argv[2]);
-    int intervalo_ms = atoi(argv[3]);
-    int num_motorizados = atoi(argv[4]);
-    int distancia_km = atoi(argv[5]);
+    const int dimension_matriz = atoi(argv[1]);
+    const int num_restaurantes = atoi(argv[2]);
+    const int intervalo_ms = atoi(argv[3]);
+    const int num_motorizados = atoi(argv[4]);
+    const int distancia_km = atoi(argv[5]);
 
     printf("Grilla de %dx%d, %d restaurantes, intervalo %d ms, %d motorizados, %d kilometros de distancia\n", dimension_matriz, dimension_matriz, num_restaurantes, intervalo_ms, num_motorizados, distancia_km);
 
@@ -73,9 +73,11 @@ int main(int argc, char *argv[])
     struct motorizado motorizados[num_motorizados];
 
     char espacio;
+    int num_r = 0;
+    int num_m = 0;
 
     /*Distribucion aleatoria de restaurantes*/
-    for (num_restaurantes; num_restaurantes > 0; num_restaurantes--)
+    for (num_r; num_r < num_restaurantes; num_r++)
     {
         do
         {
@@ -85,12 +87,14 @@ int main(int argc, char *argv[])
             if (espacio == ' ')
             {
                 matriz[i][j] = 'r';
+                struct restaurante r = {i, j, num_r};
+                restaurantes[num_r] = r;
             }
         } while (espacio != ' ');
     }
 
     /*Distribucion aleatoria de motorizados*/
-    for (num_motorizados; num_motorizados > 0; num_motorizados--)
+    for (num_m; num_m < num_motorizados; num_m++)
     {
         do
         {
@@ -100,10 +104,13 @@ int main(int argc, char *argv[])
             if (espacio == ' ')
             {
                 matriz[i][j] = 'm';
+                struct motorizado m = {i, j, num_m};
+                motorizados[num_m] = m;
             }
         } while (espacio != ' ');
     }
 
+    /* Muestra la matriz en consola */
     i = 0;
     j = 0;
     for (i; i < dimension_matriz; i++)
@@ -115,6 +122,22 @@ int main(int argc, char *argv[])
         }
         printf("\n");
     }
+
+    /* Muestra los restarurantes y su ubicacion */
+    num_r = 0;
+
+    for(num_r; num_r < num_restaurantes; num_r++){
+        printf("Restaurante %d en (%d,%d)\n", restaurantes[num_r].number, restaurantes[num_r].x, restaurantes[num_r].y);
+    }
+
+    /* Muestra los motorizados y su ubicacion */
+    num_m = 0;
+
+    for(num_m; num_m < num_motorizados; num_m++){
+        printf("Motorizado %d en (%d,%d)\n", motorizados[num_m].number, motorizados[num_m].x, motorizados[num_m].y);
+    }
+
+    
 
     return 0;
 }
