@@ -10,7 +10,7 @@
 #include <errno.h>
 
 #define SIZE_OF_SMOBJ 100000
-#define SMOBJ_NAME "/myMemoryObj"
+#define SMOBJ_NAME "/matriz"
 
 #define SIZE_OF_DIM_MATRIZ 4
 #define DIM_MATRIX "/dimMatriz"
