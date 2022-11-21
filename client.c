@@ -13,6 +13,12 @@
 
 #define SMOBJ_NAME "/matriz"
 #define DIM_MATRIX "/dimMatriz"
+#define NUM_REST "/numRestaurantes"
+#define NUM_MOT "/numMotorizados"
+#define INTERVALO_MS "/intervaloMs"
+
+#define REST_NAME "/restaurantes"
+#define MOT_NAME "/motorizados"
 
 #define MAX_CLIENTS 10
 
@@ -21,7 +27,22 @@ struct cliente
     int x;
     int y;
     int number;
+    int num_r;
     bool served;
+};
+
+struct restaurante
+{
+    int x;
+    int y;
+    int number;
+};
+
+struct motorizado
+{
+    int x;
+    int y;
+    int number;
 };
 
 pthread_t tid[MAX_CLIENTS];
@@ -58,13 +79,13 @@ char *readMatrix()
     return ptr;
 }
 
-/* Lee la dimension de la matriz de la memoria compartida */
-const int *readDimensionOfMatrix()
+/* Lee un entero de la memoria compartida */
+const int *readSharedInt(const char *name)
 {
     int fd;
     const int *ptr;
     struct stat shmobj_st;
-    fd = shm_open(DIM_MATRIX, O_RDONLY, 00400);
+    fd = shm_open(name, O_RDONLY, 00400);
     if (fd == -1)
     {
         printf("Error file descriptor %s\n", strerror(errno));
@@ -90,9 +111,11 @@ const int *readDimensionOfMatrix()
 void generateClient()
 {
     char *matriz = readMatrix();
-    const int *dimension_matriz = readDimensionOfMatrix();
+    const int *dimension_matriz = readSharedInt(DIM_MATRIX);
+    const int *num_restaurantes = readSharedInt(NUM_REST);
+    const int *num_motorizados = readSharedInt(NUM_MOT);
     char espacio;
-    int i, j;
+    int i, j, num_r, num_m;
 
     /* Distribucion aleatoria de cliente */
     do
@@ -100,11 +123,12 @@ void generateClient()
         unsigned int seed = time(NULL);
         i = rand_r(&seed) % *dimension_matriz;
         j = rand_r(&seed) % *dimension_matriz;
+        num_r = rand_r(&seed) % *num_restaurantes;
         espacio = *(matriz + i * *dimension_matriz + j);
         if (espacio == ' ')
         {
             *(matriz + i * *dimension_matriz + j) = 'c';
-            struct cliente c = {j - (*dimension_matriz / 2), (*dimension_matriz / 2) - i, counter};
+            struct cliente c = {j - (*dimension_matriz / 2), (*dimension_matriz / 2) - i, counter, num_r};
             clientes[counter] = c;
         }
     } while (espacio != ' ');
@@ -134,10 +158,32 @@ void *trythis(void *arg)
     return NULL;
 }
 
+/* Sleep for the requested number of milliseconds. */
+int msleep(long msec)
+{
+    struct timespec ts;
+    int res;
+
+    if (msec < 0)
+    {
+        errno = EINVAL;
+        return -1;
+    }
+
+    ts.tv_sec = msec / 1000;
+    ts.tv_nsec = (msec % 1000) * 1000000;
+
+    do {
+        res = nanosleep(&ts, &ts);
+    } while (res && errno == EINTR);
+
+    return res;
+}
+
 int main()
 {
     char *matriz = readMatrix();
-    const int *dimension_matriz = readDimensionOfMatrix();
+    const int *dimension_matriz = readSharedInt(DIM_MATRIX);
 
     /* Imprimir matriz en memoria compartida */
     int i, j;
@@ -160,15 +206,20 @@ int main()
         return 1;
     }
 
+    const int *intervalo_ms = readSharedInt(INTERVALO_MS);
+
     while (i < MAX_CLIENTS && continuar)
     {
-        sleep(1);
-        error = pthread_create(&(tid[i]), NULL, &trythis, &(tid[i]));
-        if (error != 0)
-        {
-            printf("\nThread cannot be created : [%s]", strerror(error));
+        msleep(*intervalo_ms);
+        srand(time(0));
+        if(rand() % 10 < 5){
+            error = pthread_create(&(tid[i]), NULL, &trythis, &(tid[i]));
+            if (error != 0)
+            {
+                printf("\nThread cannot be created : [%s]", strerror(error));
+            }
+            i++;
         }
-        i++;
     }
 
     for (i = 0; i < MAX_CLIENTS; i++)
@@ -177,6 +228,10 @@ int main()
     }
 
     pthread_mutex_destroy(&lock);
+
+    for(i = 0; i< MAX_CLIENTS; i++){
+        printf("Cliente [%d] -> Restaurante [%d]\n", clientes[i].number, clientes[i].num_r);
+    }
 
     return 0;
 }

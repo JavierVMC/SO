@@ -9,11 +9,16 @@
 #include <fcntl.h>
 #include <errno.h>
 
-#define SIZE_OF_SMOBJ 100000
+#define SIZE_OF_SMOBJ 8000000
 #define SMOBJ_NAME "/matriz"
 
-#define SIZE_OF_DIM_MATRIZ 4
 #define DIM_MATRIX "/dimMatriz"
+#define NUM_REST "/numRestaurantes"
+#define NUM_MOT "/numMotorizados"
+#define INTERVALO_MS "/intervaloMs"
+
+#define REST_NAME "/restaurantes"
+#define MOT_NAME "/motorizados"
 
 struct restaurante
 {
@@ -29,7 +34,6 @@ struct motorizado
     int number;
 };
 
-
 void print_help(char *command)
 {
     printf("chasquiEats inicializa la simulacion del servicio de pedidos.\n");
@@ -40,7 +44,8 @@ void print_help(char *command)
 }
 
 /* Creacion de memoria compartida para almacenar la matriz */
-char * createSharedMatrix(){
+char *createSharedMatrix()
+{
     int fd;
     char *ptr;
     fd = shm_open(SMOBJ_NAME, O_CREAT | O_RDWR, 00700);
@@ -63,26 +68,78 @@ char * createSharedMatrix(){
     return ptr;
 }
 
-void createSharedDimMatrix(const int dimension_matriz){
+/* Creacion de memoria compartida para almacenar el arreglo de restaurantes */
+struct restaurante *createSharedRestaurants()
+{
     int fd;
-    int *ptr;
-    fd = shm_open(DIM_MATRIX, O_CREAT | O_RDWR, 00700);
+    struct restaurante *ptr;
+    fd = shm_open(REST_NAME, O_CREAT | O_RDWR, 00700);
     if (fd == -1)
     {
         printf("Error file descriptor\n");
         exit(1);
     }
-    if (ftruncate(fd, sizeof(SIZE_OF_DIM_MATRIZ)) == -1)
+    if (ftruncate(fd, sizeof(SIZE_OF_SMOBJ)) == -1)
     {
         printf("Error shared memory cannot be resized\n");
     }
-    ptr = mmap(NULL, sizeof(SIZE_OF_DIM_MATRIZ), PROT_WRITE, MAP_SHARED, fd, 0);
+    ptr = mmap(NULL, sizeof(SIZE_OF_SMOBJ), PROT_WRITE, MAP_SHARED, fd, 0);
     if (ptr == MAP_FAILED)
     {
         printf("Map failed in write process: %s\n", strerror(errno));
         exit(1);
     }
-    memcpy(ptr, &dimension_matriz, sizeof(int));
+    close(fd);
+    return ptr;
+}
+
+/* Creacion de memoria compartida para almacenar el arreglo de motorizados */
+struct motorizado *createSharedMotorizados()
+{
+    int fd;
+    struct motorizado *ptr;
+    fd = shm_open(REST_NAME, O_CREAT | O_RDWR, 00700);
+    if (fd == -1)
+    {
+        printf("Error file descriptor\n");
+        exit(1);
+    }
+    if (ftruncate(fd, sizeof(SIZE_OF_SMOBJ)) == -1)
+    {
+        printf("Error shared memory cannot be resized\n");
+    }
+    ptr = mmap(NULL, sizeof(SIZE_OF_SMOBJ), PROT_WRITE, MAP_SHARED, fd, 0);
+    if (ptr == MAP_FAILED)
+    {
+        printf("Map failed in write process: %s\n", strerror(errno));
+        exit(1);
+    }
+    close(fd);
+    return ptr;
+}
+
+/* Creacion de memoria compartida para almacenar un entero */
+void createSharedInt(const int num, const char *name)
+{
+    int fd;
+    int *ptr;
+    fd = shm_open(name, O_CREAT | O_RDWR, 00700);
+    if (fd == -1)
+    {
+        printf("Error file descriptor\n");
+        exit(1);
+    }
+    if (ftruncate(fd, sizeof(int)) == -1)
+    {
+        printf("Error shared memory cannot be resized\n");
+    }
+    ptr = mmap(NULL, sizeof(int), PROT_WRITE, MAP_SHARED, fd, 0);
+    if (ptr == MAP_FAILED)
+    {
+        printf("Map failed in write process: %s\n", strerror(errno));
+        exit(1);
+    }
+    memcpy(ptr, &num, sizeof(int));
     close(fd);
 }
 
@@ -198,9 +255,24 @@ int main(int argc, char *argv[])
         printf("Motorizado %d en (%d,%d)\n", motorizados[num_m].number, motorizados[num_m].x, motorizados[num_m].y);
     }
 
-    char * ptr = createSharedMatrix();
+
+    /* Guarda la matriz en memoria compartida */
+    char *ptr = createSharedMatrix();
     memcpy(ptr, matriz, sizeof(matriz));
-    createSharedDimMatrix(dimension_matriz);
+
+    /* Guarda el arreglo de restaurantes en memoria compartida */
+    struct restaurante *ptr_restaurantes = createSharedRestaurants();
+    memcpy(ptr_restaurantes, restaurantes, sizeof(restaurantes));
+
+    /* Guarda el arreglo de motorizados en memoria compartida */
+    struct motorizado *ptr_motorizados = createSharedMotorizados();
+    memcpy(ptr_motorizados, motorizados, sizeof(motorizados));
+
+    /* Guarda la cantidad de elementos de las estructuras (matriz, restaurantes, motorizados) en memoria compartida*/
+    createSharedInt(dimension_matriz, DIM_MATRIX);
+    createSharedInt(num_restaurantes, NUM_REST);
+    createSharedInt(num_motorizados, NUM_MOT);
+    createSharedInt(intervalo_ms, INTERVALO_MS);
 
     return 0;
 }
