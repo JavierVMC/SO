@@ -175,6 +175,19 @@ int main(int argc, char *argv[])
     const int num_motorizados = atoi(argv[4]);
     const int distancia_km = atoi(argv[5]);
 
+    if (dimension_matriz % 2 == 0 || num_motorizados > 100 || num_restaurantes > 100 || dimension_matriz > 63)
+    {
+        fprintf(stderr, "uso:\n %s <dimension_matriz> <restaurantes> <intervalo_ms> <motorizados> <distancia_km>\n", argv[0]);
+        fprintf(stderr, "Restricciones:\n");
+        fprintf(stderr, "<dimersion_matriz>Numero entero positivo impar menor o igual a 63.\n");
+        fprintf(stderr, "<restaurantes>\tNumero entero positivo menor o igual a 100.\n");
+        fprintf(stderr, "<intervalo_ms>\tIntervalo de tiempo en ms.\n");
+        fprintf(stderr, "<motorizados>\tNumero entero positivo menor o igual a 100.\n");
+        fprintf(stderr, "<distancia_km>\tDistancia maxima a la que el motorizado debe estar del restaurante para ser elegido.\n");
+        fprintf(stderr, "     %s -h\n", argv[0]);
+        return 1;
+    }
+
     printf("Grilla de %dx%d, %d restaurantes, intervalo %d ms, %d motorizados, %d kilometros de distancia\n", dimension_matriz, dimension_matriz, num_restaurantes, intervalo_ms, num_motorizados, distancia_km);
 
     char matriz[dimension_matriz][dimension_matriz];
@@ -197,8 +210,8 @@ int main(int argc, char *argv[])
     {
         do
         {
-            i = rand() % dimension_matriz;
-            j = rand() % dimension_matriz;
+            i = rand() / (RAND_MAX / dimension_matriz + 1);
+            j = rand() / (RAND_MAX / dimension_matriz + 1);
             espacio = matriz[i][j];
             if (espacio == ' ')
             {
@@ -214,8 +227,8 @@ int main(int argc, char *argv[])
     {
         do
         {
-            i = rand() % dimension_matriz;
-            j = rand() % dimension_matriz;
+            i = rand() / (RAND_MAX / dimension_matriz + 1);
+            j = rand() / (RAND_MAX / dimension_matriz + 1);
             espacio = matriz[i][j];
             if (espacio == ' ')
             {
@@ -254,7 +267,6 @@ int main(int argc, char *argv[])
     {
         printf("Motorizado %d en (%d,%d)\n", motorizados[num_m].number, motorizados[num_m].x, motorizados[num_m].y);
     }
-
 
     /* Guarda la matriz en memoria compartida */
     char *ptr = createSharedMatrix();
