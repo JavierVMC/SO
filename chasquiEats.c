@@ -10,7 +10,7 @@
 #include <errno.h>
 
 #define SIZE_OF_SMOBJ 8000000
-#define SMOBJ_NAME "/matriz"
+#define MATRIX_NAME "/matriz"
 
 #define DIM_MATRIX "/dimMatriz"
 #define NUM_REST "/numRestaurantes"
@@ -20,19 +20,23 @@
 #define REST_NAME "/restaurantes"
 #define MOT_NAME "/motorizados"
 
-struct restaurante
-{
-    int x;
-    int y;
-    int number;
-};
+#define MAX_NUM_REST 100
+#define MAX_NUM_MOT 100
+#define MAX_DIM_MATRIX 63
 
-struct motorizado
+typedef struct restaurante
 {
     int x;
     int y;
     int number;
-};
+}Restaurante;
+
+typedef struct motorizado
+{
+    int x;
+    int y;
+    int number;
+}Motorizado;
 
 void print_help(char *command)
 {
@@ -48,7 +52,7 @@ char *createSharedMatrix()
 {
     int fd;
     char *ptr;
-    fd = shm_open(SMOBJ_NAME, O_CREAT | O_RDWR, 00700);
+    fd = shm_open(MATRIX_NAME, O_CREAT | O_RDWR, 00700);
     if (fd == -1)
     {
         printf("Error file descriptor\n");
@@ -69,10 +73,10 @@ char *createSharedMatrix()
 }
 
 /* Creacion de memoria compartida para almacenar el arreglo de restaurantes */
-struct restaurante *createSharedRestaurants()
+Restaurante *createSharedRestaurants()
 {
     int fd;
-    struct restaurante *ptr;
+    Restaurante *ptr;
     fd = shm_open(REST_NAME, O_CREAT | O_RDWR, 00700);
     if (fd == -1)
     {
@@ -94,11 +98,11 @@ struct restaurante *createSharedRestaurants()
 }
 
 /* Creacion de memoria compartida para almacenar el arreglo de motorizados */
-struct motorizado *createSharedMotorizados()
+Motorizado *createSharedMotorizados()
 {
     int fd;
-    struct motorizado *ptr;
-    fd = shm_open(REST_NAME, O_CREAT | O_RDWR, 00700);
+    Motorizado *ptr;
+    fd = shm_open(MOT_NAME, O_CREAT | O_RDWR, 00700);
     if (fd == -1)
     {
         printf("Error file descriptor\n");
@@ -175,7 +179,14 @@ int main(int argc, char *argv[])
     const int num_motorizados = atoi(argv[4]);
     const int distancia_km = atoi(argv[5]);
 
-    if (dimension_matriz % 2 == 0 || num_motorizados > 100 || num_restaurantes > 100 || dimension_matriz > 63)
+    if (dimension_matriz % 2 == 0 
+        || num_motorizados > MAX_NUM_MOT 
+        || num_restaurantes > MAX_NUM_REST 
+        || dimension_matriz > MAX_DIM_MATRIX 
+        || num_restaurantes == 0 
+        || num_motorizados == 0 
+        || intervalo_ms == 0 
+        || distancia_km == 0)
     {
         fprintf(stderr, "uso:\n %s <dimension_matriz> <restaurantes> <intervalo_ms> <motorizados> <distancia_km>\n", argv[0]);
         fprintf(stderr, "Restricciones:\n");
@@ -196,89 +207,20 @@ int main(int argc, char *argv[])
 
     memset(matriz, ' ', sizeof(char) * dimension_matriz * dimension_matriz);
 
-    srand(time(0));
-
-    struct restaurante restaurantes[num_restaurantes];
-    struct motorizado motorizados[num_motorizados];
-
-    char espacio;
-    int num_r = 0;
-    int num_m = 0;
-
-    /*Distribucion aleatoria de restaurantes*/
-    for (num_r; num_r < num_restaurantes; num_r++)
-    {
-        do
-        {
-            i = rand() / (RAND_MAX / dimension_matriz + 1);
-            j = rand() / (RAND_MAX / dimension_matriz + 1);
-            espacio = matriz[i][j];
-            if (espacio == ' ')
-            {
-                matriz[i][j] = 'r';
-                struct restaurante r = {j - (dimension_matriz / 2), (dimension_matriz / 2) - i, num_r};
-                restaurantes[num_r] = r;
-            }
-        } while (espacio != ' ');
-    }
-
-    /*Distribucion aleatoria de motorizados*/
-    for (num_m; num_m < num_motorizados; num_m++)
-    {
-        do
-        {
-            i = rand() / (RAND_MAX / dimension_matriz + 1);
-            j = rand() / (RAND_MAX / dimension_matriz + 1);
-            espacio = matriz[i][j];
-            if (espacio == ' ')
-            {
-                matriz[i][j] = 'm';
-                struct motorizado m = {j - (dimension_matriz / 2), (dimension_matriz / 2) - i, num_m};
-                motorizados[num_m] = m;
-            }
-        } while (espacio != ' ');
-    }
-
     /* Muestra la matriz en consola */
-    i = 0;
-    j = 0;
-    for (i; i < dimension_matriz; i++)
+    for (i = 0; i < dimension_matriz; i++)
     {
-        j = 0;
-        for (j; j < dimension_matriz; j++)
+        for (j = 0; j < dimension_matriz; j++)
         {
             printf("%c ", matriz[i][j]);
         }
         printf("\n");
     }
 
-    /* Muestra los restarurantes y su ubicacion */
-    num_r = 0;
-
-    for (num_r; num_r < num_restaurantes; num_r++)
-    {
-        printf("Restaurante %d en (%d,%d)\n", restaurantes[num_r].number, restaurantes[num_r].x, restaurantes[num_r].y);
-    }
-
-    /* Muestra los motorizados y su ubicacion */
-    num_m = 0;
-
-    for (num_m; num_m < num_motorizados; num_m++)
-    {
-        printf("Motorizado %d en (%d,%d)\n", motorizados[num_m].number, motorizados[num_m].x, motorizados[num_m].y);
-    }
-
     /* Guarda la matriz en memoria compartida */
     char *ptr = createSharedMatrix();
     memcpy(ptr, matriz, sizeof(matriz));
 
-    /* Guarda el arreglo de restaurantes en memoria compartida */
-    struct restaurante *ptr_restaurantes = createSharedRestaurants();
-    memcpy(ptr_restaurantes, restaurantes, sizeof(restaurantes));
-
-    /* Guarda el arreglo de motorizados en memoria compartida */
-    struct motorizado *ptr_motorizados = createSharedMotorizados();
-    memcpy(ptr_motorizados, motorizados, sizeof(motorizados));
 
     /* Guarda la cantidad de elementos de las estructuras (matriz, restaurantes, motorizados) en memoria compartida*/
     createSharedInt(dimension_matriz, DIM_MATRIX);

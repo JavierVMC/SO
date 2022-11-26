@@ -20,7 +20,7 @@
 #define REST_NAME "/restaurantes"
 #define MOT_NAME "/motorizados"
 
-#define MAX_CLIENTS 10
+#define MAX_NUM_MOT 100
 
 typedef struct cliente
 {
@@ -45,12 +45,12 @@ typedef struct motorizado
     pthread_t pid;
 } Motorizado;
 
-pthread_t tid[MAX_CLIENTS];
+pthread_t tid[MAX_NUM_MOT];
 int counter;
 pthread_mutex_t lock;
 
-Cliente clientes[MAX_CLIENTS];
-bool continuar = true;
+
+Motorizado motorizados[MAX_NUM_MOT];
 
 /* Lee la matriz de la memoria compartida */
 char *readMatrix()
@@ -107,16 +107,14 @@ const int *readSharedInt(const char *name)
     return ptr;
 }
 
-/* Crea al cliente, lo pone en un lugar aleatorio del mapa y lo conecta con el restaurante y el motorizado */
-void *manageClient(void *arg)
+/* Crea al motorizado, lo pone en un lugar aleatorio del mapa y lo conecta con el cliente y el restaurante */
+void *manageMotorizado(void *arg)
 {
     const int *dimension_matriz = readSharedInt(DIM_MATRIX);
-    const int *num_restaurantes = readSharedInt(NUM_REST);
-    const int *num_motorizados = readSharedInt(NUM_MOT);
     char espacio;
     int i, j, num_r, num_m;
 
-    /* Distribucion aleatoria de cliente */
+    /* Distribucion aleatoria de restaurante */
     pthread_mutex_lock(&lock);
 
     char *matriz = readMatrix();
@@ -125,17 +123,16 @@ void *manageClient(void *arg)
         unsigned int seed = time(NULL);
         i = rand_r(&seed) % *dimension_matriz;
         j = rand_r(&seed) % *dimension_matriz;
-        num_r = rand_r(&seed) % *num_restaurantes;
         espacio = *(matriz + i * *dimension_matriz + j);
         if (espacio == ' ')
         {
-            *(matriz + i * *dimension_matriz + j) = 'c';
+            *(matriz + i * *dimension_matriz + j) = 'm';
             int x = j - (*dimension_matriz / 2);
             int y = (*dimension_matriz / 2) - i;
             pthread_t pid = pthread_self();
             printf("pid = %ld\n", pid);
-            Cliente c = {x, y, false, pid, pid};
-            clientes[counter] = c;
+            Motorizado m = {x, y, pid};
+            motorizados[counter] = m;
         }
     } while (espacio != ' ');
 
@@ -193,24 +190,19 @@ int main()
         return 1;
     }
 
-    const int *intervalo_ms = readSharedInt(INTERVALO_MS);
+    const int *num_motorizados = readSharedInt(NUM_MOT);
 
-    while (i < MAX_CLIENTS && continuar)
+    while (i < *num_motorizados)
     {
-        msleep(*intervalo_ms);
-        srand(time(0));
-        if (rand() % 10 < 5)
+        error = pthread_create(&(tid[i]), NULL, &manageMotorizado, NULL);
+        if (error != 0)
         {
-            error = pthread_create(&(tid[i]), NULL, &manageClient, NULL);
-            if (error != 0)
-            {
-                printf("\nThread cannot be created : [%s]", strerror(error));
-            }
-            i++;
+            printf("\nThread cannot be created : [%s]", strerror(error));
         }
+        i++;
     }
 
-    for (i = 0; i < MAX_CLIENTS; i++)
+    for (i = 0; i < *num_motorizados; i++)
     {
         int error = pthread_join(tid[i], NULL);
         fprintf(stderr, "Thread [%ld] exit with %d\n", tid[i], error);
@@ -218,9 +210,9 @@ int main()
 
     pthread_mutex_destroy(&lock);
 
-    for (i = 0; i < MAX_CLIENTS; i++)
+    for (i = 0; i < *num_motorizados; i++)
     {
-        printf("Cliente [%ld] (%d, %d) -> Restaurante [%ld]\n", clientes[i].pid, clientes[i].x, clientes[i].y, clientes[i].pid_r);
+        printf("Motorizado [%ld] (%d, %d)\n", motorizados[i].pid, motorizados[i].x, motorizados[i].y);
     }
 
     return 0;
