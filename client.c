@@ -11,6 +11,7 @@
 #include <stdbool.h>
 #include <time.h>
 #include "myFunctions.h"
+#include "queue.h"
 
 pthread_t tid[MAX_CLIENTS];
 int counter;

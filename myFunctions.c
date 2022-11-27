@@ -124,6 +124,7 @@ const int *readSharedInt(const char *name)
         printf("Map failed in read process: %s\n", strerror(errno));
         exit(1);
     }
+    close(fd);
     return ptr;
 }
 
@@ -177,6 +178,7 @@ Restaurante *readSharedRestaurants()
         printf("Map failed in read process: %s\n", strerror(errno));
         exit(1);
     }
+    close(fd);
     return ptr;
 }
 
@@ -205,6 +207,7 @@ Restaurante *editSharedRestaurants()
         printf("Map failed in read process: %s\n", strerror(errno));
         exit(1);
     }
+    close(fd);
     return ptr;
 }
 
@@ -258,6 +261,7 @@ Cliente *readSharedClients()
         printf("Map failed in read process: %s\n", strerror(errno));
         exit(1);
     }
+    close(fd);
     return ptr;
 }
 

@@ -11,6 +11,7 @@
 #include <stdbool.h>
 #include <time.h>
 #include "myFunctions.h"
+#include "queue.h"
 
 pthread_t tid[MAX_NUM_REST];
 int counter;
@@ -112,7 +113,7 @@ void *manageRestaurant(void *arg)
     strcpy(pipePath, restaurantes[num_r].pipePath);
     Restaurante *ptr;
     while (strcmp(pipePath, "") == 0)
-    {
+    {   
         ptr = readSharedRestaurants();
         strcpy(pipePath, ptr[num_r].pipePath);
         sleep(1);
