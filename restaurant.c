@@ -10,8 +10,8 @@
 #include <pthread.h>
 #include <stdbool.h>
 #include <time.h>
-#include "myFunctions.h"
 #include "queue.h"
+#include "myFunctions.h"
 
 pthread_t tid[MAX_NUM_REST];
 int counter;
@@ -65,79 +65,66 @@ int main()
 /* Crea al restaurante, lo pone en un lugar aleatorio del mapa y lo conecta con el cliente y el motorizado */
 void *manageRestaurant(void *arg)
 {
-    const int *dimension_matriz = readSharedInt(DIM_MATRIX);
-    const int *num_restaurantes = readSharedInt(NUM_REST);
-    const int *num_motorizados = readSharedInt(NUM_MOT);
-    int i, j, num_r, num_m;
-    char espacio;
-    char pipePath[LEN_MESSAGE] = "";
-
-    /* Distribucion aleatoria de restaurante */
-    pthread_mutex_lock(&lock);
-
-    char *matriz = readSharedMatrix();
+    int num_r;
     pthread_t pid = pthread_self();
 
-    do
-    {
-        unsigned int seed = time(NULL);
-        i = rand_r(&seed) % *dimension_matriz;
-        j = rand_r(&seed) % *dimension_matriz;
-        espacio = *(matriz + i * *dimension_matriz + j);
-        if (espacio == ' ')
-        {
-            *(matriz + i * *dimension_matriz + j) = 'r';
-            int x = j - (*dimension_matriz / 2);
-            int y = (*dimension_matriz / 2) - i;
-            Restaurante r = {x, y, "", pid, pid};
-            restaurantes[counter] = r;
-            /* Guardar los restaurantes en memoria compartida */
-            Restaurante *ptr = createSharedRestaurants();
-            for (i = 0; i < *num_restaurantes; i++)
-            {
-                ptr[i].x = restaurantes[i].x;
-                ptr[i].y = restaurantes[i].y;
-                ptr[i].pid_c = restaurantes[i].pid_c;
-                ptr[i].pid = restaurantes[i].pid;
-                strcpy(ptr[i].pipePath, restaurantes[i].pipePath);
-            }
-            num_r = counter;
-            printf("Restaurante [%ld] (%d,%d) {%s}\n", ptr[counter].pid, ptr[counter].x, ptr[counter].y, ptr[counter].pipePath);
-        }
-    } while (espacio != ' ');
+    pthread_mutex_lock(&lock);
 
+    createRestaurant(pid, &num_r, &counter, restaurantes);
     counter += 1;
+
     pthread_mutex_unlock(&lock);
 
+    int vuelta = 0;
     /* Lee el mensaje en el pipe con el cliente */
-    strcpy(pipePath, restaurantes[num_r].pipePath);
-    Restaurante *ptr;
-    while (strcmp(pipePath, "") == 0)
-    {   
-        ptr = readSharedRestaurants();
-        strcpy(pipePath, ptr[num_r].pipePath);
-        sleep(1);
-    }
-    /* PIPE FIFO */
-    int fd;
-    int status;
-    while (status == 0)
+    while (1)
     {
+        Restaurante *ptr = editSharedRestaurants();
+        pthread_t currentPipe = INT_MIN;
+        pthread_t currentClient = INT_MIN;
+        char pipePath[LEN_MESSAGE] = "";
+        while (currentPipe == INT_MIN)
+        {
+            pthread_mutex_lock(&lock);
+            currentPipe = dequeue(&ptr[num_r].colaNumPipes);
+            ptr = editSharedRestaurants();
+            pthread_mutex_unlock(&lock);
+            sleep(1);
+        }
+        while (currentClient == INT_MIN)
+        {
+            pthread_mutex_lock(&lock);
+            currentClient = dequeue(&ptr[num_r].colaClientes);
+            ptr = editSharedRestaurants();
+            pthread_mutex_unlock(&lock);
+            sleep(1);
+        }
+
+        createPipePath(pipePath, currentPipe);
+        int fd;
+        int status;
+        /* Espera el mensaje del cliente */
+
         char message_from_c[LEN_MESSAGE];
         fd = open(pipePath, O_RDONLY);
-        /* Lee un mensaje del cliente */
-        status = read(fd, message_from_c, LEN_MESSAGE);
-        if (status != -1 && status != 0)
-        {
-            printf("Message from client [%ld] to restaurant [%ld]: %s\n", ptr[num_r].pid_c, pid, message_from_c);
-        }
+        read(fd, message_from_c, LEN_MESSAGE);
+        printf("Message from client [%ld] to restaurant [%ld]: %s\n", currentClient, pid, message_from_c);
         close(fd);
-    }
 
-    /* Lee un mensaje del restaurante */
-    fd = open(pipePath, O_WRONLY);
-    write(fd, message_to_c, LEN_MESSAGE);
-    close(fd);
+        /* Preparando comida */
+        unsigned int seed = time(NULL);
+        int tiempoRandom = (rand_r(&seed) % 3) + 1;
+        printf("[%ld] Preparando comida para cliente [%ld]\n", pid, currentClient);
+        sleep(tiempoRandom);
+        printf("[%ld] Comida terminada para cliente [%ld]\n", pid, currentClient);
+        /* Escribe un mensaje al cliente */
+        fd = open(pipePath, O_WRONLY);
+        write(fd, message_to_c, LEN_MESSAGE);
+        close(fd);
+        printf("[%ld] Mensaje enviado al cliente [%ld]: %s\n", pid, currentClient, message_to_c);
+
+        vuelta++;
+    }
 
     return NULL;
 }

@@ -7,15 +7,17 @@
 // function to create a queue
 // of given capacity.
 // It initializes size of queue as 0
-Queue *createQueue(unsigned capacity)
+Queue createQueue()
 {
-    Queue *queue = (Queue *)malloc(sizeof(Queue));
-    queue->capacity = capacity;
-    queue->front = queue->size = 0;
+    Queue queue;
+    queue.front = 0;
+    queue.size = 0;
 
     // This is important, see the enqueue
-    queue->rear = capacity - 1;
-    queue->array = (pthread_t *)malloc(queue->capacity * sizeof(pthread_t));
+    queue.rear = MAX_QUEUE_CAPACITY - 1;
+    for(int i = 0; i < MAX_QUEUE_CAPACITY; i++){
+        queue.array[i] = 1;
+    }
     return queue;
 }
 
@@ -23,7 +25,7 @@ Queue *createQueue(unsigned capacity)
 // equal to the capacity
 pthread_t isFull(Queue *queue)
 {
-    return (queue->size == queue->capacity);
+    return (queue->size == MAX_QUEUE_CAPACITY);
 }
 
 // Queue is empty when size is 0
@@ -38,10 +40,9 @@ void enqueue(Queue *queue, pthread_t item)
 {
     if (isFull(queue))
         return;
-    queue->rear = (queue->rear + 1) % queue->capacity;
+    queue->rear = (queue->rear + 1) % MAX_QUEUE_CAPACITY;
     queue->array[queue->rear] = item;
     queue->size = queue->size + 1;
-    printf("%ld enqueued to queue\n", item);
 }
 
 // Function to remove an item from queue.
@@ -51,7 +52,7 @@ pthread_t dequeue(Queue *queue)
     if (isEmpty(queue))
         return INT_MIN;
     pthread_t item = queue->array[queue->front];
-    queue->front = (queue->front + 1) % queue->capacity;
+    queue->front = (queue->front + 1) % MAX_QUEUE_CAPACITY;
     queue->size = queue->size - 1;
     return item;
 }
@@ -71,3 +72,18 @@ pthread_t rear(Queue *queue)
         return INT_MIN;
     return queue->array[queue->rear];
 }
+
+// int main(){
+//     Queue cola = createQueue();
+//     enqueue(&cola, 10);
+//     printf("Size: %ld\n", cola.size);
+//     printf("Front: %ld\n", cola.front);
+//     printf("Rear: %ld\n", cola.rear);
+//     while(cola.size != 0){
+//         printf("[%ld] dequeue\n", dequeue(&cola));
+//         printf("Size: %ld\n", cola.size);
+//         printf("Front: %ld\n", cola.front);
+//         printf("Rear: %ld\n", cola.rear);
+//     }
+
+// }

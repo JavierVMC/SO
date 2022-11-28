@@ -51,10 +51,7 @@ int main()
         if (rand() % 10 < 5)
         {
             char pipePath[LEN_MESSAGE] = "";
-            char number[MAX_DIGITS] = "";
-            sprintf(number, "%d", i);
-            strcat(pipePath, "/tmp/mypipe");
-            strcat(pipePath, number);
+            createPipePath(pipePath, i);
             mkfifo(pipePath, 0666);
             strcpy(pipePaths[i], pipePath);
             error = pthread_create(&(tid[i]), NULL, &manageClient, pipePaths[i]);
@@ -84,61 +81,31 @@ int main()
 void *manageClient(void *arg)
 {
     char *pipePath = (char *)arg; // File descriptor del pipe con el restaurante
-    int result_r;                 // Resultado de escribir en el pipe del restaurante
-    char espacio;
-    int i, j, num_r, num_m, num_c;
+    int num_r;
+    pthread_t pid = pthread_self();
 
-    const int *dimension_matriz = readSharedInt(DIM_MATRIX);
-    const int *num_restaurantes = readSharedInt(NUM_REST);
-    const int *num_motorizados = readSharedInt(NUM_MOT);
-
-    /* Distribucion aleatoria de cliente */
     pthread_mutex_lock(&lock);
 
-    pthread_t pid = pthread_self();
-    char *matriz = readSharedMatrix();
-
-    do
-    {
-        unsigned int seed = time(NULL);
-        i = rand_r(&seed) % *dimension_matriz;
-        j = rand_r(&seed) % *dimension_matriz;
-        num_r = rand_r(&seed) % *num_restaurantes;
-        espacio = *(matriz + i * *dimension_matriz + j);
-        if (espacio == ' ')
-        {
-            *(matriz + i * *dimension_matriz + j) = 'c';
-            int x = j - (*dimension_matriz / 2);
-            int y = (*dimension_matriz / 2) - i;
-            Cliente c = {x, y, false, "", restaurantes[num_r].pid, pid};
-            restaurantes[num_r].pid_c, pid;
-            strcpy(restaurantes[num_r].pipePath, pipePath);
-            strcpy(c.pipePath, pipePath);
-            clientes[counter] = c;
-            printf("Cliente [%ld] (%d,%d) {%s} -> Restaurante [%ld]\n", clientes[counter].pid, clientes[counter].x, clientes[counter].y, clientes[counter].pipePath, clientes[counter].pid_r);
-        }
-    } while (espacio != ' ');
+    createClient(pid, &num_r, &counter, pipePath, restaurantes, clientes);
     counter += 1;
+
     pthread_mutex_unlock(&lock);
 
     /* PIPE FIFO */
     int fd;
+    int status;
     char message_from_r[LEN_MESSAGE];
     /* Escribe un mensaje al restaurante */
+
     fd = open(pipePath, O_WRONLY);
     write(fd, message_to_r, LEN_MESSAGE);
     close(fd);
-    int status;
-    while (status == 0)
-    {
-        /* Lee un mensaje del restaurante */
-        fd = open(pipePath, O_RDONLY);
-        status = read(fd, message_from_r, LEN_MESSAGE);
-        if (status != -1 && status != 0)
-        {
-            printf("Message from restaurant [%ld] to client [%ld]: %s\n", restaurantes[num_r].pid, pid, message_from_r);
-        }
-        close(fd);
-    }
+
+    /* Lee un mensaje del restaurante */
+    fd = open(pipePath, O_RDONLY);
+    read(fd, message_from_r, LEN_MESSAGE);
+    printf("Message from restaurant [%ld] to client [%ld]: %s\n", restaurantes[num_r].pid, pid, message_from_r);
+    close(fd);
+
     return NULL;
 }

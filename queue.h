@@ -2,19 +2,24 @@
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
+#ifndef QUEUE_H
+#define QUEUE_H
+
+#define MAX_QUEUE_CAPACITY 10
 
 // A structure to represent a queue
 typedef struct Queue
 {
-    pthread_t front, rear, size;
-    unsigned capacity;
-    pthread_t *array;
+    pthread_t front;
+    pthread_t rear;
+    pthread_t size;
+    pthread_t array[MAX_QUEUE_CAPACITY];
 } Queue;
 
 // function to create a queue
 // of given capacity.
 // It initializes size of queue as 0
-Queue *createQueue(unsigned capacity);
+Queue createQueue();
 
 // Queue is full when size becomes
 // equal to the capacity
@@ -36,3 +41,5 @@ pthread_t front(Queue *queue);
 
 // Function to get rear of queue
 pthread_t rear(Queue *queue);
+
+#endif

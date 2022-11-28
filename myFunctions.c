@@ -1,4 +1,5 @@
 #include "myFunctions.h"
+#include "queue.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/mman.h>
@@ -188,7 +189,7 @@ Restaurante *editSharedRestaurants()
     int fd;
     Restaurante *ptr;
     struct stat shmobj_st;
-    fd = shm_open(REST_NAME, O_RDWR, 00700);
+    fd = shm_open(REST_NAME, O_CREAT | O_RDWR, 00700);
     if (fd == -1)
     {
         printf("Error file descriptor %s\n", strerror(errno));
@@ -312,7 +313,8 @@ void printSharedRestaurants()
     const int *num_restaurantes = readSharedInt(NUM_REST);
     for (int i = 0; i < *num_restaurantes; i++)
     {
-        printf("Restaurante [%ld] (%d,%d) {%s} -> Cliente [%ld]\n", ptr_read[i].pid, ptr_read[i].x, ptr_read[i].y, ptr_read[i].pipePath, ptr_read[i].pid_c);
+        printf("Restaurante [%ld] (%d,%d) -> ", ptr_read[i].pid, ptr_read[i].x, ptr_read[i].y);
+        printQueueArray(&ptr_read[i].colaClientes);
     }
 }
 
@@ -326,4 +328,121 @@ void printSharedClients()
     {
         printf("Cliente [%ld] (%d,%d) {%s} -> Restaurante [%ld]\n", ptr_read[i].pid, ptr_read[i].x, ptr_read[i].y, ptr_read[i].pipePath, ptr_read[i].pid_r);
     }
+}
+
+/* Guarda el pipePath con el numero i en el puntero pipePath */
+void createPipePath(char *pipePath, int i)
+{
+    char number[MAX_DIGITS] = "";
+    sprintf(number, "%d", i);
+    strcat(pipePath, "/tmp/mypipe");
+    strcat(pipePath, number);
+}
+
+/* Imprime los elementos de la cola sin sacarlos */
+void printQueue(Queue *queue)
+{
+    printf("Queue:");
+    for (int i = 0; i < queue->size; i++)
+    {
+        printf(" %ld |", queue->array[i]);
+    }
+    printf("\n");
+}
+
+/* Imprime los elementos del array de la cola */
+void printQueueArray(Queue *queue)
+{
+    printf("Queue:");
+    for (int i = 0; i < MAX_QUEUE_CAPACITY; i++)
+    {
+        printf(" %ld |", queue->array[i]);
+    }
+    printf("\n");
+}
+
+/* Imprime informacion sobre el cliente y el restaurante al que ordeno */
+void printClientInfo(Cliente *cliente, Restaurante *restaurante)
+{
+    printf("Cliente [%ld] (%d,%d) {%s} -> Restaurante [%ld] ", cliente->pid, cliente->x, cliente->y, cliente->pipePath, cliente->pid_r);
+    printQueue(&restaurante->colaClientes);
+}
+
+/* Imprime informacion sobre el restaurante */
+void printRestaurantInfo(Restaurante *restaurante)
+{
+    printf("Restaurante [%ld] (%d,%d) ", restaurante->pid, restaurante->x, restaurante->y);
+    printQueue(&restaurante->colaClientes);
+}
+
+/* Crea un restaurante en una posicion aleatoria de la matriz */
+void createRestaurant(pthread_t pid, int *num_r, int *counter, Restaurante *restaurantes)
+{
+    const int *dimension_matriz = readSharedInt(DIM_MATRIX);
+    const int *num_restaurantes = readSharedInt(NUM_REST);
+    const int *num_motorizados = readSharedInt(NUM_MOT);
+    int i, j;
+    char espacio;
+    Queue colaClientes = createQueue();
+    Queue colaNumPipes = createQueue();
+    char *matriz = readSharedMatrix();
+    /* Distribucion aleatoria de restaurante */
+    do
+    {
+        unsigned int seed = time(NULL);
+        i = rand_r(&seed) % *dimension_matriz;
+        j = rand_r(&seed) % *dimension_matriz;
+        espacio = *(matriz + i * *dimension_matriz + j);
+        if (espacio == ' ')
+        {
+            *(matriz + i * *dimension_matriz + j) = 'r';
+            int x = j - (*dimension_matriz / 2);
+            int y = (*dimension_matriz / 2) - i;
+            Restaurante r = {x, y, pid, colaClientes, colaNumPipes};
+            restaurantes[*counter] = r;
+            /* Guardar los restaurantes en memoria compartida */
+            Restaurante *ptr = createSharedRestaurants();
+            for (i = 0; i < *num_restaurantes; i++)
+            {
+                ptr[i].x = restaurantes[i].x;
+                ptr[i].y = restaurantes[i].y;
+                ptr[i].pid = restaurantes[i].pid;
+                ptr[i].colaClientes = restaurantes[i].colaClientes;
+                ptr[i].colaNumPipes = restaurantes[i].colaNumPipes;
+            }
+            *num_r = *counter;
+            printRestaurantInfo(&ptr[*counter]);
+        }
+    } while (espacio != ' ');
+}
+
+/* Crea un cliente en una posicion aleatoria de la matriz y lo hace ordenar a un restaurante aleatorio */
+void createClient(pthread_t pid, int *num_r, int *counter, char *pipePath, Restaurante *restaurantes, Cliente *clientes)
+{
+    const int *dimension_matriz = readSharedInt(DIM_MATRIX);
+    const int *num_restaurantes = readSharedInt(NUM_REST);
+    char *matriz = readSharedMatrix();
+    char espacio;
+    int i, j;
+
+    do
+    {
+        unsigned int seed = time(NULL);
+        i = rand_r(&seed) % *dimension_matriz;
+        j = rand_r(&seed) % *dimension_matriz;
+        *num_r = rand_r(&seed) % *num_restaurantes;
+        espacio = *(matriz + i * *dimension_matriz + j);
+        if (espacio == ' ')
+        {
+            *(matriz + i * *dimension_matriz + j) = 'c';
+            int x = j - (*dimension_matriz / 2);
+            int y = (*dimension_matriz / 2) - i;
+            Cliente c = {x, y, false, "", restaurantes[*num_r].pid, pid};
+            enqueue(&restaurantes[*num_r].colaNumPipes, *counter);
+            enqueue(&restaurantes[*num_r].colaClientes, pid);
+            strcpy(c.pipePath, pipePath);
+            clientes[*counter] = c;
+            printClientInfo(&clientes[*counter], &restaurantes[*num_r]);
+        }
+    } while (espacio != ' ');
 }

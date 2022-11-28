@@ -1,7 +1,7 @@
 all: chasquiEats client restaurant
 
-chasquiEats: myFunctions.o chasquiEats.o
-	gcc chasquiEats.o myFunctions.o -o chasquiEats -lrt
+chasquiEats: myFunctions.o chasquiEats.o queue.o
+	gcc chasquiEats.o myFunctions.o queue.o -o chasquiEats -lrt
 
 client: myFunctions.o queue.o client.o
 	gcc client.o myFunctions.o queue.o -o client -lrt -lpthread

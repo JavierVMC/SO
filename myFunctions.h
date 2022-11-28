@@ -1,5 +1,7 @@
 #include <stdbool.h>
 #include <pthread.h>
+#include "queue.h"
+
 #ifndef MYFUNCTIONS_H
 #define MYFUNCTIONS_H
 
@@ -23,6 +25,7 @@
 #define LEN_MESSAGE 100
 #define MAX_DIGITS 10
 
+
 typedef struct cliente
 {
     int x;
@@ -37,9 +40,9 @@ typedef struct restaurante
 {
     int x;
     int y;
-    char pipePath[LEN_MESSAGE];
-    pthread_t pid_c;
     pthread_t pid;
+    Queue colaClientes;
+    Queue colaNumPipes;
 } Restaurante;
 
 typedef struct motorizado
@@ -68,5 +71,15 @@ int msleep(long msec);
 void printSharedMatrix();
 void printSharedRestaurants();
 void printSharedClients();
+
+void createPipePath(char *pipePath, int i);
+
+void printQueue(Queue *queue);
+void printQueueArray(Queue *queue);
+void printClientInfo(Cliente *cliente, Restaurante *restaurante);
+void printRestaurantInfo(Restaurante *restaurante);
+
+void createRestaurant(pthread_t pid, int *num_r, int *counter, Restaurante *restaurantes);
+void createClient(pthread_t pid, int *num_r, int *counter, char *pipePath, Restaurante *restaurantes, Cliente *clientes);
 
 #endif
